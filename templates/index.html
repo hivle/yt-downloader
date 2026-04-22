@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YouTube Downloader</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>YouTube Downloader</h1>
+    <p class="sub">Paste a URL, pick a format, and grab the file. Sign in via browser cookies or an uploaded <code>cookies.txt</code> to reach age-restricted, private, or members-only videos.</p>
+
+    <form id="dl-form">
+      <label>
+        Video URL
+        <input type="url" name="url" required placeholder="https://www.youtube.com/watch?v=..." />
+      </label>
+
+      <div class="row">
+        <label>
+          Quality
+          <select name="quality">
+            <option value="best">Best available</option>
+            <option value="2160">2160p (4K)</option>
+            <option value="1440">1440p</option>
+            <option value="1080" selected>1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+          </select>
+        </label>
+
+        <label class="check">
+          <input type="checkbox" name="audio_only" /> Audio only (MP3)
+        </label>
+      </div>
+
+      <details class="auth">
+        <summary>Sign-in (for restricted videos)</summary>
+        <p class="hint">Pick <strong>one</strong> option. Cookies give yt-dlp access to anything the logged-in account can see.</p>
+
+        <label>
+          Use cookies from browser
+          <select name="browser">
+            <option value="">— none —</option>
+            {% for b in browsers %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>
+          Browser profile (optional)
+          <input type="text" name="browser_profile" placeholder="Default, Profile 1, ..." />
+        </label>
+
+        <label>
+          …or upload cookies.txt (Netscape format)
+          <input type="file" name="cookies_file" accept=".txt" />
+        </label>
+        <p class="hint small">Tip: export with a browser extension like "Get cookies.txt LOCALLY". The file is deleted after the download finishes.</p>
+      </details>
+
+      <button type="submit" id="go">Download</button>
+    </form>
+
+    <section id="status" hidden>
+      <h2 id="status-title">Working…</h2>
+      <div class="bar"><div id="bar-fill"></div></div>
+      <p id="status-line"></p>
+      <a id="download-link" hidden>Save file</a>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('dl-form');
+    const statusEl = document.getElementById('status');
+    const statusTitle = document.getElementById('status-title');
+    const statusLine = document.getElementById('status-line');
+    const barFill = document.getElementById('bar-fill');
+    const dlLink = document.getElementById('download-link');
+    const goBtn = document.getElementById('go');
+
+    function fmtBytesPerSec(b) {
+      if (!b) return '';
+      const units = ['B/s','KB/s','MB/s','GB/s'];
+      let i = 0; while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+      return b.toFixed(1) + ' ' + units[i];
+    }
+
+    async function poll(jobId) {
+      try {
+        const r = await fetch(`/api/status/${jobId}`);
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'status error');
+
+        const pct = (j.progress || 0).toFixed(1);
+        barFill.style.width = pct + '%';
+
+        if (j.status === 'downloading') {
+          statusTitle.textContent = 'Downloading…';
+          statusLine.textContent = `${pct}% · ${fmtBytesPerSec(j.speed)}${j.eta ? ' · ETA ' + j.eta + 's' : ''}`;
+        } else if (j.status === 'processing') {
+          statusTitle.textContent = 'Processing…';
+          statusLine.textContent = 'Merging / converting…';
+        } else if (j.status === 'done') {
+          statusTitle.textContent = 'Done';
+          statusLine.textContent = j.title || j.filename;
+          dlLink.href = `/files/${encodeURIComponent(j.filename)}`;
+          dlLink.textContent = 'Save "' + (j.filename) + '"';
+          dlLink.hidden = false;
+          goBtn.disabled = false;
+          return;
+        } else if (j.status === 'error') {
+          statusTitle.textContent = 'Error';
+          statusLine.textContent = j.error || 'Download failed';
+          statusLine.classList.add('err');
+          goBtn.disabled = false;
+          return;
+        } else {
+          statusTitle.textContent = 'Queued…';
+          statusLine.textContent = '';
+        }
+        setTimeout(() => poll(jobId), 750);
+      } catch (e) {
+        statusTitle.textContent = 'Error';
+        statusLine.textContent = e.message;
+        statusLine.classList.add('err');
+        goBtn.disabled = false;
+      }
+    }
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      goBtn.disabled = true;
+      statusEl.hidden = false;
+      dlLink.hidden = true;
+      statusLine.classList.remove('err');
+      barFill.style.width = '0%';
+      statusTitle.textContent = 'Starting…';
+      statusLine.textContent = '';
+
+      const fd = new FormData(form);
+      try {
+        const r = await fetch('/api/download', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'failed to start');
+        poll(j.job_id);
+      } catch (e) {
+        statusTitle.textContent = 'Error';
+        statusLine.textContent = e.message;
+        statusLine.classList.add('err');
+        goBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
