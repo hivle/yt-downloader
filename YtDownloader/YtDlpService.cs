@@ -306,7 +306,6 @@ public static class YtDlpService
                     m.Groups[4].Success ? m.Groups[4].Value : null,
                     curItem,
                     totalItems));
-                return;
             }
 
             onLog(e.Data);

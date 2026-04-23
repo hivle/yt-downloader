@@ -18,6 +18,7 @@ public partial class MainWindow : Window
 
     private readonly CancellationTokenSource _shutdown = new();
     private bool _busy;
+    private int _progressLineStart = -1;
 
     public MainWindow()
     {
@@ -267,10 +268,26 @@ public partial class MainWindow : Window
         => url.Contains("list=", StringComparison.OrdinalIgnoreCase)
            || url.Contains("/playlist", StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsProgressLine(string line)
+        => line.StartsWith("[download]", StringComparison.Ordinal) && line.Contains('%');
+
     private void Log(string line) =>
         Dispatcher.Invoke(() =>
         {
-            LogBox.AppendText(line + Environment.NewLine);
+            var isProgress = IsProgressLine(line);
+
+            if (isProgress && _progressLineStart >= 0
+                && _progressLineStart <= LogBox.Text.Length)
+            {
+                LogBox.Select(_progressLineStart, LogBox.Text.Length - _progressLineStart);
+                LogBox.SelectedText = line + Environment.NewLine;
+                LogBox.Select(LogBox.Text.Length, 0);
+            }
+            else
+            {
+                _progressLineStart = isProgress ? LogBox.Text.Length : -1;
+                LogBox.AppendText(line + Environment.NewLine);
+            }
             LogBox.ScrollToEnd();
         });
 
