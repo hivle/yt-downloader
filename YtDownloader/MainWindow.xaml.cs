@@ -84,11 +84,11 @@ public partial class MainWindow : Window
         MainPanel.Visibility = Visibility.Collapsed;
         MiniPanel.Visibility = Visibility.Visible;
 
-        MinWidth = 240;
-        MinHeight = 80;
-        Width = 280;
-        Height = 90;
-        ResizeMode = ResizeMode.NoResize;
+        MinWidth = 300;
+        MinHeight = 110;
+        Width = 360;
+        Height = 120;
+        ResizeMode = ResizeMode.CanResize;
     }
 
     private void ExitMiniClick(object sender, RoutedEventArgs e)
