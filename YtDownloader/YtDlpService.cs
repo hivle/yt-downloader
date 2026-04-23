@@ -312,6 +312,7 @@ public static class YtDlpService
                     m.Groups[4].Success ? m.Groups[4].Value : null,
                     curItem,
                     totalItems));
+                return; // Per-download progress lives in the per-job UI, not the global log.
             }
 
             onLog(e.Data);

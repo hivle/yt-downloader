@@ -8,126 +8,210 @@
         WindowStartupLocation="CenterScreen"
         Topmost="True"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
-    <Border Margin="10" Background="{StaticResource PanelBrush}"
-            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-            CornerRadius="10" Padding="14">
-        <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+    <Grid>
+        <!-- Full mode -->
+        <Border x:Name="MainPanel" Margin="10"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="14">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="YT Downloader" FontSize="20" FontWeight="SemiBold"/>
-            <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Drag any video link (YouTube, Twitter/X, TikTok, Bilibili, Vimeo, …) into the box below to auto-download."
-                       Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,10" TextWrapping="Wrap"/>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="YT Downloader" FontSize="20" FontWeight="SemiBold"/>
+                    <Button Grid.Column="1" Content="Mini mode" Click="EnterMiniClick"
+                            FontSize="11" Padding="8,3"
+                            Background="{StaticResource SoftBgBrush}"
+                            Foreground="{StaticResource TextBrush}"
+                            VerticalAlignment="Center"/>
+                </Grid>
+                <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Drag any video link (YouTube, Twitter/X, TikTok, Bilibili, Vimeo, …) into the box below to auto-download."
+                           Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,10" TextWrapping="Wrap"/>
 
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Video URL  (drop any link here — yt-dlp supports 1000+ sites)"
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Video URL  (drop any link here — yt-dlp supports 1000+ sites)"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                    <CheckBox Grid.Column="1" x:Name="TopmostCheck"
+                              Content="Always on top" FontSize="12"
+                              IsChecked="True"
+                              Foreground="{StaticResource MutedBrush}"
+                              Checked="TopmostCheck_Changed" Unchecked="TopmostCheck_Changed"/>
+                </Grid>
+                <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,3,0,8"
+                         AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
+
+                <Grid Grid.Row="4" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Quality" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                        <ComboBox x:Name="QualityBox" Margin="0,4,0,0" SelectedIndex="5">
+                            <ComboBoxItem Content="Best"/>
+                            <ComboBoxItem Content="2160p"/>
+                            <ComboBoxItem Content="1440p"/>
+                            <ComboBoxItem Content="1080p"/>
+                            <ComboBoxItem Content="720p"/>
+                            <ComboBoxItem Content="480p"/>
+                            <ComboBoxItem Content="360p"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" x:Name="AudioOnlyCheck" Content="Audio only (MP3)"
+                              VerticalAlignment="Bottom" Margin="16,0,0,6"/>
+                </Grid>
+
+                <TextBlock Grid.Row="5" Text="Sign-in source (for restricted videos)"
                            Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-                <CheckBox Grid.Column="1" x:Name="TopmostCheck"
-                          Content="Always on top" FontSize="12"
-                          IsChecked="True"
-                          Foreground="{StaticResource MutedBrush}"
-                          Checked="TopmostCheck_Changed" Unchecked="TopmostCheck_Changed"/>
-            </Grid>
-            <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,3,0,8"
-                     AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
+                <ComboBox Grid.Row="6" x:Name="BrowserBox" Margin="0,3,0,8" SelectedIndex="0">
+                    <ComboBoxItem Content="(none)"/>
+                    <ComboBoxItem Content="chrome"/>
+                    <ComboBoxItem Content="edge"/>
+                    <ComboBoxItem Content="firefox"/>
+                    <ComboBoxItem Content="brave"/>
+                    <ComboBoxItem Content="opera"/>
+                    <ComboBoxItem Content="vivaldi"/>
+                    <ComboBoxItem Content="chromium"/>
+                </ComboBox>
 
-            <Grid Grid.Row="4" Margin="0,0,0,8">
+                <TextBlock Grid.Row="7" Text="Save to" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                <Grid Grid.Row="8" Margin="0,3,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="SaveDirBox"/>
+                    <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
+                            Background="{StaticResource SoftBgBrush}"
+                            Foreground="{StaticResource TextBrush}"
+                            Click="BrowseClick"/>
+                    <Button Grid.Column="2" Content="Open" Margin="6,0,0,0"
+                            Background="{StaticResource SoftBgBrush}"
+                            Foreground="{StaticResource TextBrush}"
+                            Click="OpenFolderClick"/>
+                </Grid>
+
+                <Grid Grid.Row="9" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
+                            Height="34" Margin="0,0,4,0"/>
+                    <Button Grid.Column="1" x:Name="FromBrowserBtn"
+                            Content="Grab from browser" Click="FromBrowserClick"
+                            Height="34" Margin="4,0,0,0"
+                            Background="{StaticResource SecondaryBrush}"
+                            Foreground="White"/>
+                </Grid>
+
+                <ScrollViewer Grid.Row="10" MaxHeight="180" VerticalScrollBarVisibility="Auto"
+                              Margin="0,2,0,4">
+                    <ItemsControl x:Name="JobsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,2" Padding="8,6"
+                                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                        CornerRadius="4" Background="{StaticResource SoftBgBrush}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Display}"
+                                                       TextTrimming="CharacterEllipsis" FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextBrush}"/>
+                                            <ProgressBar Value="{Binding Percent}" Maximum="100"
+                                                         Height="6" Margin="0,4"
+                                                         Background="{StaticResource PanelBrush}"
+                                                         Foreground="{StaticResource AccentBrush}"
+                                                         BorderBrush="{StaticResource BorderBrush}"/>
+                                            <TextBlock Text="{Binding Status}" FontSize="10"
+                                                       Foreground="{StaticResource MutedBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="{Binding ActionText}"
+                                                Click="JobActionClick"
+                                                VerticalAlignment="Center" Margin="8,0,0,0"
+                                                Padding="10,4"
+                                                Background="{StaticResource SoftBgBrush}"
+                                                Foreground="{StaticResource TextBrush}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <Grid Grid.Row="11" Margin="0,4,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" Text="Ready."
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Clear finished" FontSize="11"
+                            Padding="8,3" Click="ClearFinishedClick"
+                            Background="{StaticResource SoftBgBrush}"
+                            Foreground="{StaticResource TextBrush}"/>
+                </Grid>
+
+                <TextBox Grid.Row="12" x:Name="LogBox" IsReadOnly="True"
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         FontFamily="Cascadia Mono, Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Meiryo, Malgun Gothic, MS Gothic, SimSun, PMingLiU, Segoe UI"
+                         FontSize="11"
+                         Background="{StaticResource SoftBgBrush}"
+                         MinHeight="60"/>
+            </Grid>
+        </Border>
+
+        <!-- Mini mode -->
+        <Border x:Name="MiniPanel" Margin="6" Visibility="Collapsed"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="6">
+            <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel>
-                    <TextBlock Text="Quality" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-                    <ComboBox x:Name="QualityBox" Margin="0,4,0,0" SelectedIndex="3">
-                        <ComboBoxItem Content="Best"/>
-                        <ComboBoxItem Content="2160p"/>
-                        <ComboBoxItem Content="1440p"/>
-                        <ComboBoxItem Content="1080p"/>
-                        <ComboBoxItem Content="720p"/>
-                        <ComboBoxItem Content="480p"/>
-                        <ComboBoxItem Content="360p"/>
-                    </ComboBox>
-                </StackPanel>
-                <CheckBox Grid.Column="1" x:Name="AudioOnlyCheck" Content="Audio only (MP3)"
-                          VerticalAlignment="Bottom" Margin="16,0,0,6"/>
-            </Grid>
-
-            <TextBlock Grid.Row="5" Text="Sign-in source (for restricted videos)"
-                       Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-            <ComboBox Grid.Row="6" x:Name="BrowserBox" Margin="0,3,0,8" SelectedIndex="0">
-                <ComboBoxItem Content="(none)"/>
-                <ComboBoxItem Content="chrome"/>
-                <ComboBoxItem Content="edge"/>
-                <ComboBoxItem Content="firefox"/>
-                <ComboBoxItem Content="brave"/>
-                <ComboBoxItem Content="opera"/>
-                <ComboBoxItem Content="vivaldi"/>
-                <ComboBoxItem Content="chromium"/>
-            </ComboBox>
-
-            <TextBlock Grid.Row="7" Text="Save to" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-            <Grid Grid.Row="8" Margin="0,3,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="SaveDirBox"/>
-                <Button Grid.Column="1" Content="Browse…" Margin="8,0,0,0"
-                        Background="{StaticResource SoftBgBrush}"
-                        Foreground="{StaticResource TextBrush}"
-                        Click="BrowseClick"/>
-                <Button Grid.Column="2" Content="Open" Margin="6,0,0,0"
-                        Background="{StaticResource SoftBgBrush}"
-                        Foreground="{StaticResource TextBrush}"
-                        Click="OpenFolderClick"/>
-            </Grid>
-
-            <Grid Grid.Row="9" Margin="0,0,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Button x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
-                        Height="34" Margin="0,0,4,0"/>
-                <Button Grid.Column="1" x:Name="FromBrowserBtn"
-                        Content="Grab from browser" Click="FromBrowserClick"
-                        Height="34" Margin="4,0,0,0"
+                <Button Content="Grab from browser" Click="FromBrowserClick"
+                        Height="34"
                         Background="{StaticResource SecondaryBrush}"
                         Foreground="White"/>
+                <Button Grid.Column="1" Content="⤢" ToolTip="Exit mini mode"
+                        Click="ExitMiniClick"
+                        Margin="6,0,0,0" Padding="10,0" Height="34"
+                        FontSize="14"
+                        Background="{StaticResource SoftBgBrush}"
+                        Foreground="{StaticResource TextBrush}"/>
             </Grid>
-
-            <ProgressBar Grid.Row="10" x:Name="Progress" Height="10" Minimum="0" Maximum="100"
-                         Background="{StaticResource SoftBgBrush}"
-                         Foreground="{StaticResource AccentBrush}"
-                         BorderBrush="{StaticResource BorderBrush}"/>
-            <TextBlock Grid.Row="11" x:Name="StatusText" Text="Ready." Margin="0,8,0,8"
-                       Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-
-            <TextBox Grid.Row="12" x:Name="LogBox" IsReadOnly="True"
-                     VerticalScrollBarVisibility="Auto"
-                     TextWrapping="Wrap"
-                     FontFamily="Cascadia Mono, Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Meiryo, Malgun Gothic, MS Gothic, SimSun, PMingLiU, Segoe UI"
-                     FontSize="11"
-                     Background="{StaticResource SoftBgBrush}"
-                     MinHeight="60"/>
-        </Grid>
-    </Border>
+        </Border>
+    </Grid>
 </Window>

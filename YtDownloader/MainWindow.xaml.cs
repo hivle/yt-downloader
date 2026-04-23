@@ -1,5 +1,7 @@
 using System;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,9 +18,15 @@ public partial class MainWindow : Window
         @"https?://[^\s<>""']+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    private static readonly Regex DestinationRegex = new(
+        @"\[(?:download|Merger)\]\s+(?:Destination:\s+|Merging formats into\s+""?)(.+?)""?$",
+        RegexOptions.Compiled);
+
     private readonly CancellationTokenSource _shutdown = new();
-    private bool _busy;
-    private int _progressLineStart = -1;
+    public ObservableCollection<DownloadJob> Jobs { get; } = new();
+
+    private double _savedWidth, _savedHeight, _savedMinWidth, _savedMinHeight;
+    private ResizeMode _savedResizeMode;
 
     public MainWindow()
     {
@@ -26,6 +34,7 @@ public partial class MainWindow : Window
         SaveDirBox.Text = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "Videos", "YouTube");
+        JobsList.ItemsSource = Jobs;
         Loaded += OnLoaded;
         Closed += (_, _) => _shutdown.Cancel();
     }
@@ -64,6 +73,36 @@ public partial class MainWindow : Window
         Topmost = TopmostCheck.IsChecked == true;
     }
 
+    private void EnterMiniClick(object sender, RoutedEventArgs e)
+    {
+        _savedWidth = Width;
+        _savedHeight = Height;
+        _savedMinWidth = MinWidth;
+        _savedMinHeight = MinHeight;
+        _savedResizeMode = ResizeMode;
+
+        MainPanel.Visibility = Visibility.Collapsed;
+        MiniPanel.Visibility = Visibility.Visible;
+
+        MinWidth = 240;
+        MinHeight = 80;
+        Width = 280;
+        Height = 90;
+        ResizeMode = ResizeMode.NoResize;
+    }
+
+    private void ExitMiniClick(object sender, RoutedEventArgs e)
+    {
+        MainPanel.Visibility = Visibility.Visible;
+        MiniPanel.Visibility = Visibility.Collapsed;
+
+        ResizeMode = _savedResizeMode == 0 ? ResizeMode.CanResize : _savedResizeMode;
+        MinWidth = _savedMinWidth > 0 ? _savedMinWidth : 440;
+        MinHeight = _savedMinHeight > 0 ? _savedMinHeight : 420;
+        Width = _savedWidth > 0 ? _savedWidth : 560;
+        Height = _savedHeight > 0 ? _savedHeight : 540;
+    }
+
     private void Window_DragOver(object sender, DragEventArgs e)
     {
         e.Effects = ContainsUrlData(e.Data) ? DragDropEffects.Copy : DragDropEffects.None;
@@ -75,7 +114,7 @@ public partial class MainWindow : Window
         var url = ExtractUrlFromDropData(e.Data);
         if (url is null)
         {
-            Log("Dropped data did not contain a YouTube URL.");
+            Log("Dropped data did not contain a URL.");
             return;
         }
 
@@ -176,8 +215,6 @@ public partial class MainWindow : Window
 
     private async void FromBrowserClick(object sender, RoutedEventArgs e)
     {
-        if (_busy) return;
-
         FromBrowserBtn.IsEnabled = false;
         SetStatus("Looking for a browser window…", ok: true);
 
@@ -213,18 +250,28 @@ public partial class MainWindow : Window
 
     private async Task StartDownloadAsync()
     {
-        if (_busy) return;
-
         var url = UrlBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(url))
         {
-            MessageBox.Show(this, "Enter a YouTube URL first.", "YT Downloader",
+            MessageBox.Show(this, "Enter a URL first.", "YT Downloader",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         bool playlist = false;
-        if (UrlContainsPlaylist(url))
+        if (UrlIsChannel(url))
+        {
+            var res = MessageBox.Show(this,
+                "This URL points to a channel.\n\n" +
+                "OK     – download every video on the channel (this can be hundreds of files / many GB)\n" +
+                "Cancel – abort",
+                "Channel detected",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+            if (res != MessageBoxResult.OK) return;
+            playlist = true;
+        }
+        else if (UrlContainsPlaylist(url))
         {
             var res = MessageBox.Show(this,
                 "This URL contains a playlist.\n\n" +
@@ -247,17 +294,29 @@ public partial class MainWindow : Window
             return;
         }
 
-        var quality = ((ComboBoxItem)QualityBox.SelectedItem).Content?.ToString() ?? "1080p";
+        var quality = ((ComboBoxItem)QualityBox.SelectedItem).Content?.ToString() ?? "480p";
         var browser = ((ComboBoxItem)BrowserBox.SelectedItem).Content?.ToString() ?? "(none)";
         var audioOnly = AudioOnlyCheck.IsChecked == true;
 
-        _busy = true;
-        DownloadBtn.IsEnabled = false;
-        Progress.Value = 0;
-        SetStatus("Starting…", ok: true);
-
         var req = new DownloadRequest(url, saveDir, quality, audioOnly, playlist,
             browser == "(none)" ? null : browser);
+
+        var job = new DownloadJob(url) { Status = "Starting…" };
+        Jobs.Add(job);
+        UrlBox.Clear();
+
+        SetStatus($"{Jobs.Count(j => j.IsActive)} active.", ok: true);
+
+        // Fire-and-forget; each job runs independently.
+        _ = RunJobAsync(job, req);
+
+        await Task.CompletedTask;
+    }
+
+    private async Task RunJobAsync(DownloadJob job, DownloadRequest req)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            _shutdown.Token, job.Cts.Token);
 
         try
         {
@@ -265,54 +324,110 @@ public partial class MainWindow : Window
                 req,
                 p => Dispatcher.Invoke(() =>
                 {
-                    Progress.Value = p.Percent;
+                    job.Percent = p.Percent;
                     var item = p.Item is not null ? $"[{p.Item}/{p.Total}] " : "";
                     var eta = p.Eta is null ? "" : $" · ETA {p.Eta}";
-                    SetStatus($"Downloading… {item}{p.Percent:0.0}% · {p.Speed}{eta}", ok: true);
+                    job.Status = $"{item}{p.Percent:0.0}% · {p.Speed}{eta}";
                 }),
-                line => Log(line),
-                _shutdown.Token);
+                line =>
+                {
+                    Log(line);
+                    var t = ExtractTitleFromLine(line);
+                    if (t is not null)
+                        Dispatcher.Invoke(() => { if (job.Title is null) job.Title = t; });
+                },
+                linked.Token);
 
-            if (exit == 0) SetStatus("Done.", ok: true);
-            else SetStatus($"yt-dlp exited with code {exit}. See log.", ok: false);
+            Dispatcher.Invoke(() =>
+            {
+                job.IsActive = false;
+                if (exit == 0) { job.Percent = 100; job.Status = "Done."; }
+                else job.Status = $"yt-dlp exit {exit} — see log.";
+                RefreshGlobalStatus();
+            });
         }
-        catch (OperationCanceledException) { SetStatus("Cancelled.", ok: false); }
+        catch (OperationCanceledException)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                job.IsActive = false;
+                job.Status = "Cancelled.";
+                RefreshGlobalStatus();
+            });
+        }
         catch (Exception ex)
         {
+            Dispatcher.Invoke(() =>
+            {
+                job.IsActive = false;
+                job.Status = "Failed: " + ex.Message;
+                RefreshGlobalStatus();
+            });
             Log("ERROR: " + ex.Message);
-            SetStatus("Failed — see log.", ok: false);
         }
-        finally
+    }
+
+    private void JobActionClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.DataContext is not DownloadJob job) return;
+        if (job.IsActive)
         {
-            _busy = false;
-            DownloadBtn.IsEnabled = true;
+            try { job.Cts.Cancel(); } catch { }
         }
+        else
+        {
+            Jobs.Remove(job);
+            RefreshGlobalStatus();
+        }
+    }
+
+    private void ClearFinishedClick(object sender, RoutedEventArgs e)
+    {
+        for (int i = Jobs.Count - 1; i >= 0; i--)
+            if (!Jobs[i].IsActive) Jobs.RemoveAt(i);
+        RefreshGlobalStatus();
+    }
+
+    private void RefreshGlobalStatus()
+    {
+        var active = Jobs.Count(j => j.IsActive);
+        var done = Jobs.Count - active;
+        SetStatus(active == 0 && done == 0 ? "Ready." : $"{active} active · {done} finished.", ok: true);
+    }
+
+    private static string? ExtractTitleFromLine(string line)
+    {
+        var m = DestinationRegex.Match(line);
+        if (!m.Success) return null;
+        var path = m.Groups[1].Value.Trim().Trim('"');
+        try
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            var idx = name.LastIndexOf(" [");
+            return (idx > 0 ? name[..idx] : name).Trim();
+        }
+        catch { return null; }
     }
 
     private static bool UrlContainsPlaylist(string url)
         => url.Contains("list=", StringComparison.OrdinalIgnoreCase)
            || url.Contains("/playlist", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsProgressLine(string line)
-        => line.StartsWith("[download]", StringComparison.Ordinal) && line.Contains('%');
+    private static bool UrlIsChannel(string url)
+    {
+        if (url.Contains("/watch", StringComparison.OrdinalIgnoreCase)) return false;
+        var lower = url.ToLowerInvariant();
+        return lower.Contains("/@")
+            || lower.Contains("/channel/")
+            || lower.Contains("/c/")
+            || lower.Contains("/user/");
+    }
 
     private void Log(string line) =>
         Dispatcher.Invoke(() =>
         {
-            var isProgress = IsProgressLine(line);
-
-            if (isProgress && _progressLineStart >= 0
-                && _progressLineStart <= LogBox.Text.Length)
-            {
-                LogBox.Select(_progressLineStart, LogBox.Text.Length - _progressLineStart);
-                LogBox.SelectedText = line + Environment.NewLine;
-                LogBox.Select(LogBox.Text.Length, 0);
-            }
-            else
-            {
-                _progressLineStart = isProgress ? LogBox.Text.Length : -1;
-                LogBox.AppendText(line + Environment.NewLine);
-            }
+            LogBox.AppendText(line + Environment.NewLine);
             LogBox.ScrollToEnd();
         });
 
