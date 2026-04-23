@@ -117,6 +117,8 @@ public static class YtDlpService
 
     public static bool TryFindFfmpeg(out string path)
     {
+        var beside = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
+        if (File.Exists(beside)) { path = beside; return true; }
         if (File.Exists(LocalFfmpegPath)) { path = LocalFfmpegPath; return true; }
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? "";
         foreach (var dir in pathEnv.Split(Path.PathSeparator))
