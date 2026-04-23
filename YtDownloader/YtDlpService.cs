@@ -286,7 +286,6 @@ public static class YtDlpService
         proc.OutputDataReceived += (_, e) =>
         {
             if (e.Data is null) return;
-            onLog(e.Data);
 
             var pl = PlaylistItemRegex.Match(e.Data);
             if (pl.Success)
@@ -307,7 +306,10 @@ public static class YtDlpService
                     m.Groups[4].Success ? m.Groups[4].Value : null,
                     curItem,
                     totalItems));
+                return;
             }
+
+            onLog(e.Data);
         };
         proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) onLog(e.Data); };
 

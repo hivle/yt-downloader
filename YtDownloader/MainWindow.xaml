@@ -5,6 +5,7 @@
         MinHeight="560" MinWidth="580"
         Background="{StaticResource BgBrush}"
         WindowStartupLocation="CenterScreen"
+        Topmost="True"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
     <Border Margin="16" Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
@@ -39,11 +40,25 @@
                            Foreground="{StaticResource MutedBrush}" FontSize="12"/>
                 <CheckBox Grid.Column="1" x:Name="TopmostCheck"
                           Content="Always on top" FontSize="12"
+                          IsChecked="True"
                           Foreground="{StaticResource MutedBrush}"
                           Checked="TopmostCheck_Changed" Unchecked="TopmostCheck_Changed"/>
             </Grid>
-            <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,4,0,10"
-                     AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
+            <Grid Grid.Row="3" Margin="0,4,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="UrlBox"
+                         AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
+                <Button Grid.Column="1" x:Name="FromBrowserBtn"
+                        Content="Grab from browser"
+                        Click="FromBrowserClick"
+                        Margin="8,0,0,0"
+                        Padding="12,0"
+                        Background="{StaticResource SecondaryBrush}"
+                        Foreground="White"/>
+            </Grid>
 
             <Grid Grid.Row="4" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
@@ -92,18 +107,8 @@
                         Click="BrowseClick"/>
             </Grid>
 
-            <Grid Grid.Row="9" Margin="0,0,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
-                        Height="38"/>
-                <Button Grid.Column="1" x:Name="FromBrowserBtn" Content="From browser"
-                        Click="FromBrowserClick" Height="38" Margin="8,0,0,0"
-                        Background="{StaticResource SoftBgBrush}"
-                        Foreground="{StaticResource TextBrush}"/>
-            </Grid>
+            <Button Grid.Row="9" x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
+                    HorizontalAlignment="Stretch" Height="38" Margin="0,0,0,12"/>
 
             <ProgressBar Grid.Row="10" x:Name="Progress" Height="10" Minimum="0" Maximum="100"
                          Background="{StaticResource SoftBgBrush}"
