@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Automation;
 
 namespace YtDownloader;
@@ -40,6 +41,26 @@ public static class BrowserUrlService
         return "https://" + raw;
     }
 
+    // Address-bar accessible name across Windows display languages.
+    // Lowercased haystack is searched for any of these substrings.
+    private static readonly string[] AddressBarKeywords =
+    {
+        // English
+        "address", "url", "search", "location",
+        // Chinese (Simplified & Traditional)
+        "地址", "网址", "網址", "搜索", "搜尋",
+        // Japanese
+        "アドレス", "検索", "url",
+        // Korean
+        "주소", "검색",
+        // German, French, Spanish, Italian, Russian, Portuguese (common ones)
+        "adresse", "adresleri", "barra", "indirizzo", "адрес", "endereço",
+    };
+
+    private static readonly Regex UrlLikeRegex = new(
+        @"^(?:https?://|[a-z0-9][a-z0-9\-]*\.[a-z]{2,})",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static string? ReadAddressBar(IntPtr hwnd)
     {
         try
@@ -51,24 +72,46 @@ public static class BrowserUrlService
                 TreeScope.Descendants,
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit));
 
+            // Pass 1: name-matched edit (handles localized address-bar labels).
             foreach (AutomationElement edit in edits)
             {
                 var name = (edit.Current.Name ?? "").ToLowerInvariant();
-                if (!(name.Contains("address") || name.Contains("url")
-                      || name.Contains("search") || name.Contains("location")))
-                    continue;
+                if (!NameLooksLikeAddressBar(name)) continue;
+                var value = TryReadValue(edit);
+                if (!string.IsNullOrWhiteSpace(value)) return value;
+            }
 
-                if (!edit.TryGetCurrentPattern(ValuePattern.Pattern, out var patObj))
-                    continue;
-                if (patObj is not ValuePattern vp) continue;
-
-                var value = vp.Current.Value;
-                if (!string.IsNullOrWhiteSpace(value))
+            // Pass 2: any edit whose value already looks like a URL.
+            // Catches browsers/locales whose address bar has no recognizable name.
+            foreach (AutomationElement edit in edits)
+            {
+                var value = TryReadValue(edit);
+                if (!string.IsNullOrWhiteSpace(value)
+                    && UrlLikeRegex.IsMatch(value!.Trim()))
+                {
                     return value;
+                }
             }
         }
         catch { }
         return null;
+    }
+
+    private static bool NameLooksLikeAddressBar(string lowerName)
+    {
+        foreach (var kw in AddressBarKeywords)
+            if (lowerName.Contains(kw)) return true;
+        return false;
+    }
+
+    private static string? TryReadValue(AutomationElement edit)
+    {
+        try
+        {
+            if (!edit.TryGetCurrentPattern(ValuePattern.Pattern, out var patObj)) return null;
+            return patObj is ValuePattern vp ? vp.Current.Value : null;
+        }
+        catch { return null; }
     }
 
     private const uint GW_HWNDNEXT = 2;

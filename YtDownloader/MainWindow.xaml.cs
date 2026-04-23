@@ -12,8 +12,8 @@ namespace YtDownloader;
 
 public partial class MainWindow : Window
 {
-    private static readonly Regex YtUrlRegex = new(
-        @"https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)/\S+",
+    private static readonly Regex UrlRegex = new(
+        @"https?://[^\s<>""']+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly CancellationTokenSource _shutdown = new();
@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         var args = Environment.GetCommandLineArgs();
         if (args.Length > 1)
         {
-            var extracted = ExtractYoutubeUrl(args[1]);
+            var extracted = ExtractUrl(args[1]);
             if (extracted is not null)
             {
                 UrlBox.Text = extracted;
@@ -115,7 +115,7 @@ public partial class MainWindow : Window
                         ).ReadToEnd().TrimEnd('\0'),
                     _ => null,
                 };
-                var url = ExtractYoutubeUrl(text);
+                var url = ExtractUrl(text);
                 if (url is not null) return url;
             }
             catch { }
@@ -123,10 +123,10 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private static string? ExtractYoutubeUrl(string? text)
+    private static string? ExtractUrl(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
-        var m = YtUrlRegex.Match(text.Trim());
+        var m = UrlRegex.Match(text.Trim());
         return m.Success ? m.Value : null;
     }
 
@@ -173,13 +173,12 @@ public partial class MainWindow : Window
         Log($"Got URL from {title}: {url}");
         UrlBox.Text = url;
 
-        var m = YtUrlRegex.Match(url);
-        if (!m.Success)
+        if (!UrlRegex.IsMatch(url))
         {
             MessageBox.Show(this,
-                "The active browser tab isn't a YouTube URL:\n\n" + url,
-                "Not a YouTube URL", MessageBoxButton.OK, MessageBoxImage.Information);
-            SetStatus("Not a YouTube URL.", ok: false);
+                "The active browser tab isn't a normal http/https URL:\n\n" + url,
+                "Not a usable URL", MessageBoxButton.OK, MessageBoxImage.Information);
+            SetStatus("Not a usable URL.", ok: false);
             return;
         }
 
