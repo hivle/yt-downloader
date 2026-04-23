@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using Microsoft.Win32;
 
 namespace YtDownloader;
@@ -143,6 +144,44 @@ public partial class MainWindow : Window
 
     private async void DownloadClick(object sender, RoutedEventArgs e)
     {
+        await StartDownloadAsync();
+    }
+
+    private async void FromBrowserClick(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+
+        FromBrowserBtn.IsEnabled = false;
+        SetStatus("Looking for a browser window…", ok: true);
+
+        var selfHwnd = new WindowInteropHelper(this).Handle;
+        (string? url, string? title) = await Task.Run(() =>
+            BrowserUrlService.TryGetTopmostBrowserUrl(selfHwnd));
+
+        FromBrowserBtn.IsEnabled = true;
+
+        if (url is null)
+        {
+            MessageBox.Show(this,
+                "Couldn't find a browser window. Make sure Chrome / Edge / Firefox / Brave etc. is open behind this app, then try again.",
+                "No browser found", MessageBoxButton.OK, MessageBoxImage.Information);
+            SetStatus("No browser window found.", ok: false);
+            return;
+        }
+
+        Log($"Got URL from {title}: {url}");
+        UrlBox.Text = url;
+
+        var m = YtUrlRegex.Match(url);
+        if (!m.Success)
+        {
+            MessageBox.Show(this,
+                "The active browser tab isn't a YouTube URL:\n\n" + url,
+                "Not a YouTube URL", MessageBoxButton.OK, MessageBoxImage.Information);
+            SetStatus("Not a YouTube URL.", ok: false);
+            return;
+        }
+
         await StartDownloadAsync();
     }
 
