@@ -44,21 +44,8 @@
                           Foreground="{StaticResource MutedBrush}"
                           Checked="TopmostCheck_Changed" Unchecked="TopmostCheck_Changed"/>
             </Grid>
-            <Grid Grid.Row="3" Margin="0,4,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="UrlBox"
-                         AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
-                <Button Grid.Column="1" x:Name="FromBrowserBtn"
-                        Content="Grab from browser"
-                        Click="FromBrowserClick"
-                        Margin="8,0,0,0"
-                        Padding="12,0"
-                        Background="{StaticResource SecondaryBrush}"
-                        Foreground="White"/>
-            </Grid>
+            <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,4,0,10"
+                     AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
 
             <Grid Grid.Row="4" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
@@ -107,8 +94,19 @@
                         Click="BrowseClick"/>
             </Grid>
 
-            <Button Grid.Row="9" x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
-                    HorizontalAlignment="Stretch" Height="38" Margin="0,0,0,12"/>
+            <Grid Grid.Row="9" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="DownloadBtn" Content="Download" Click="DownloadClick"
+                        Height="38" Margin="0,0,4,0"/>
+                <Button Grid.Column="1" x:Name="FromBrowserBtn"
+                        Content="Grab from browser" Click="FromBrowserClick"
+                        Height="38" Margin="4,0,0,0"
+                        Background="{StaticResource SecondaryBrush}"
+                        Foreground="White"/>
+            </Grid>
 
             <ProgressBar Grid.Row="10" x:Name="Progress" Height="10" Minimum="0" Maximum="100"
                          Background="{StaticResource SoftBgBrush}"
