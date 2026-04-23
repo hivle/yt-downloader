@@ -43,6 +43,7 @@ public static class BrowserUrlService
 
     // Address-bar accessible name across Windows display languages.
     // Lowercased haystack is searched for any of these substrings.
+    // Pass 2 in ReadAddressBar acts as a fallback for any locale we miss here.
     private static readonly string[] AddressBarKeywords =
     {
         // English
@@ -50,11 +51,39 @@ public static class BrowserUrlService
         // Chinese (Simplified & Traditional)
         "地址", "网址", "網址", "搜索", "搜尋",
         // Japanese
-        "アドレス", "検索", "url",
+        "アドレス", "検索",
         // Korean
         "주소", "검색",
-        // German, French, Spanish, Italian, Russian, Portuguese (common ones)
-        "adresse", "adresleri", "barra", "indirizzo", "адрес", "endereço",
+        // French
+        "adresse", "recherche", "barre",
+        // German
+        "adresse", "suche", "leiste",
+        // Spanish
+        "dirección", "barra", "búsqueda",
+        // Italian
+        "indirizzo", "ricerca",
+        // Portuguese
+        "endereço", "pesquisa",
+        // Russian / Ukrainian
+        "адрес", "поиск", "адреса",
+        // Polish
+        "pasek", "adresu", "wyszukiwania",
+        // Dutch
+        "zoek", "balk",
+        // Turkish
+        "adres", "arama", "çubuğu",
+        // Vietnamese
+        "địa chỉ", "tìm kiếm",
+        // Indonesian / Malay
+        "alamat", "penelusuran",
+        // Arabic
+        "العنوان", "البحث",
+        // Hebrew
+        "כתובת", "חיפוש",
+        // Hindi
+        "पता", "खोज",
+        // Thai
+        "ที่อยู่", "ค้นหา",
     };
 
     private static readonly Regex UrlLikeRegex = new(
