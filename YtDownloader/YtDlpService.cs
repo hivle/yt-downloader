@@ -16,9 +16,15 @@ public record DownloadRequest(
     string OutputDir,
     string Quality,
     bool AudioOnly,
+    bool Playlist,
     string? Browser);
 
-public record ProgressInfo(double Percent, string Speed, string? Eta);
+public record ProgressInfo(
+    double Percent,
+    string Speed,
+    string? Eta,
+    int? Item = null,
+    int? Total = null);
 
 public static class YtDlpService
 {
@@ -138,20 +144,30 @@ public static class YtDlpService
         @"\[download\]\s+([\d.]+)%\s+of\s+~?\s*([\d.]+\w+)\s+at\s+(\S+)(?:\s+ETA\s+(\S+))?",
         RegexOptions.Compiled);
 
+    private static readonly Regex PlaylistItemRegex = new(
+        @"\[download\]\s+Downloading\s+(?:item|video)\s+(\d+)\s+of\s+(\d+)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public static async Task<int> DownloadAsync(
         DownloadRequest req,
         Action<ProgressInfo> onProgress,
         Action<string> onLog,
         CancellationToken ct)
     {
+        var outputTemplate = req.Playlist
+            ? Path.Combine(req.OutputDir, "%(playlist_title|)s", "%(playlist_index)03d - %(title)s [%(id)s].%(ext)s")
+            : Path.Combine(req.OutputDir, "%(title)s [%(id)s].%(ext)s");
+
         var args = new List<string>
         {
             "--newline",
-            "--no-playlist",
             "--no-warnings",
             "-f", FormatSelector(req.Quality, req.AudioOnly),
-            "-o", Path.Combine(req.OutputDir, "%(title)s [%(id)s].%(ext)s"),
+            "-o", outputTemplate,
         };
+
+        if (!req.Playlist) args.Add("--no-playlist");
+        else args.Add("--yes-playlist");
 
         if (req.AudioOnly)
         {
@@ -188,10 +204,20 @@ public static class YtDlpService
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
 
+        int? curItem = null, totalItems = null;
+
         proc.OutputDataReceived += (_, e) =>
         {
             if (e.Data is null) return;
             onLog(e.Data);
+
+            var pl = PlaylistItemRegex.Match(e.Data);
+            if (pl.Success)
+            {
+                curItem = int.Parse(pl.Groups[1].Value);
+                totalItems = int.Parse(pl.Groups[2].Value);
+            }
+
             var m = ProgressRegex.Match(e.Data);
             if (m.Success && double.TryParse(m.Groups[1].Value,
                 System.Globalization.NumberStyles.Float,
@@ -201,7 +227,9 @@ public static class YtDlpService
                 onProgress(new ProgressInfo(
                     pct,
                     m.Groups[3].Value,
-                    m.Groups[4].Success ? m.Groups[4].Value : null));
+                    m.Groups[4].Success ? m.Groups[4].Value : null,
+                    curItem,
+                    totalItems));
             }
         };
         proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) onLog(e.Data); };

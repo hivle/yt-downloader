@@ -3,21 +3,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <SolidColorBrush x:Key="BgBrush" Color="#FF0F1115"/>
-        <SolidColorBrush x:Key="PanelBrush" Color="#FF171A21"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#FF232833"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#FFE8ECF1"/>
-        <SolidColorBrush x:Key="MutedBrush" Color="#FF9AA3AF"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#FFFF2D55"/>
-        <SolidColorBrush x:Key="OkBrush" Color="#FF32D583"/>
-        <SolidColorBrush x:Key="ErrBrush" Color="#FFF97066"/>
+        <SolidColorBrush x:Key="BgBrush" Color="#FFF5F6F8"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#FFD9DDE3"/>
+        <SolidColorBrush x:Key="InputBgBrush" Color="#FFFFFFFF"/>
+        <SolidColorBrush x:Key="SoftBgBrush" Color="#FFEEF0F4"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#FF1F2937"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#FF6B7280"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FFE11D48"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#FFC2184A"/>
+        <SolidColorBrush x:Key="OkBrush" Color="#FF059669"/>
+        <SolidColorBrush x:Key="ErrBrush" Color="#FFDC2626"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
+
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#FF0B0D11"/>
+            <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
@@ -25,15 +29,26 @@
             <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
+
         <Style TargetType="ComboBox">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="Background" Value="#FF0B0D11"/>
+            <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="{StaticResource InputBgBrush}"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
+
         <Style TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -41,12 +56,27 @@
             <Setter Property="Padding" Value="12,7"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
