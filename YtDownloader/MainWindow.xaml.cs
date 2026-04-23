@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using Microsoft.Win32;
 
 namespace YtDownloader;
@@ -13,12 +12,10 @@ namespace YtDownloader;
 public partial class MainWindow : Window
 {
     private static readonly Regex YtUrlRegex = new(
-        @"^https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)/",
+        @"https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)/\S+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly CancellationTokenSource _shutdown = new();
-    private DispatcherTimer? _clipboardTimer;
-    private string _lastSeenClipboard = "";
     private bool _busy;
 
     public MainWindow()
@@ -28,7 +25,7 @@ public partial class MainWindow : Window
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             "Videos", "YouTube");
         Loaded += OnLoaded;
-        Closed += (_, _) => { _shutdown.Cancel(); _clipboardTimer?.Stop(); };
+        Closed += (_, _) => _shutdown.Cancel();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -37,13 +34,9 @@ public partial class MainWindow : Window
         try
         {
             await YtDlpService.EnsureYtDlpAsync(Log, _shutdown.Token);
+            await YtDlpService.EnsureFfmpegAsync(Log, _shutdown.Token);
             var version = await YtDlpService.GetYtDlpVersionAsync(_shutdown.Token);
             SetStatus($"yt-dlp v{version} ready.", ok: true);
-            if (!YtDlpService.TryFindFfmpeg(out _))
-            {
-                Log("ffmpeg not found. 1080p+ merging and MP3 conversion will fail until installed.");
-                Log("Install via: winget install Gyan.FFmpeg   (then restart the app)");
-            }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -52,57 +45,87 @@ public partial class MainWindow : Window
             SetStatus("yt-dlp setup failed — check log.", ok: false);
         }
 
-        _clipboardTimer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromSeconds(1),
-        };
-        _clipboardTimer.Tick += ClipboardTick;
-        _clipboardTimer.Start();
-
         var args = Environment.GetCommandLineArgs();
-        if (args.Length > 1 && LooksLikeYoutubeUrl(args[1]))
+        if (args.Length > 1)
         {
-            UrlBox.Text = args[1].Trim();
-            _ = StartDownloadAsync();
+            var extracted = ExtractYoutubeUrl(args[1]);
+            if (extracted is not null)
+            {
+                UrlBox.Text = extracted;
+                _ = StartDownloadAsync();
+            }
         }
     }
 
-    private void ClipboardTick(object? sender, EventArgs e)
+    private void TopmostCheck_Changed(object sender, RoutedEventArgs e)
     {
-        if (WatchClipboardCheck.IsChecked != true) return;
-        if (_busy) return;
+        Topmost = TopmostCheck.IsChecked == true;
+    }
 
-        string text;
-        try
-        {
-            if (!Clipboard.ContainsText()) return;
-            text = Clipboard.GetText().Trim();
-        }
-        catch { return; }
-
-        if (string.IsNullOrEmpty(text) || text == _lastSeenClipboard) return;
-        if (!LooksLikeYoutubeUrl(text)) return;
-
-        _lastSeenClipboard = text;
-        UrlBox.Text = text;
-        Log($"Clipboard: {text}");
-        _ = StartDownloadAsync();
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = ContainsUrlData(e.Data) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
     }
 
     private void Window_Drop(object sender, DragEventArgs e)
     {
-        string? dropped = null;
-        if (e.Data.GetDataPresent(DataFormats.Text))
-            dropped = (string?)e.Data.GetData(DataFormats.Text);
-        else if (e.Data.GetDataPresent(DataFormats.UnicodeText))
-            dropped = (string?)e.Data.GetData(DataFormats.UnicodeText);
+        var url = ExtractUrlFromDropData(e.Data);
+        if (url is null)
+        {
+            Log("Dropped data did not contain a YouTube URL.");
+            return;
+        }
 
-        if (dropped is null) return;
-        dropped = dropped.Trim();
-        if (!LooksLikeYoutubeUrl(dropped)) return;
-
-        UrlBox.Text = dropped;
+        UrlBox.Text = url;
+        Log($"Dropped: {url}");
         _ = StartDownloadAsync();
+        e.Handled = true;
+    }
+
+    private static bool ContainsUrlData(IDataObject data)
+    {
+        return data.GetDataPresent("UniformResourceLocatorW")
+               || data.GetDataPresent("UniformResourceLocator")
+               || data.GetDataPresent(DataFormats.UnicodeText)
+               || data.GetDataPresent(DataFormats.Text)
+               || data.GetDataPresent(DataFormats.StringFormat);
+    }
+
+    private static string? ExtractUrlFromDropData(IDataObject data)
+    {
+        foreach (var fmt in new[] { "UniformResourceLocatorW", "UniformResourceLocator",
+                                     DataFormats.UnicodeText, DataFormats.Text, DataFormats.StringFormat })
+        {
+            if (!data.GetDataPresent(fmt)) continue;
+            try
+            {
+                var obj = data.GetData(fmt);
+                string? text = obj switch
+                {
+                    string s => s,
+                    byte[] b when fmt == "UniformResourceLocatorW"
+                        => System.Text.Encoding.Unicode.GetString(b).TrimEnd('\0'),
+                    byte[] b when fmt == "UniformResourceLocator"
+                        => System.Text.Encoding.ASCII.GetString(b).TrimEnd('\0'),
+                    MemoryStream ms => new StreamReader(ms,
+                        fmt == "UniformResourceLocatorW" ? System.Text.Encoding.Unicode : System.Text.Encoding.ASCII
+                        ).ReadToEnd().TrimEnd('\0'),
+                    _ => null,
+                };
+                var url = ExtractYoutubeUrl(text);
+                if (url is not null) return url;
+            }
+            catch { }
+        }
+        return null;
+    }
+
+    private static string? ExtractYoutubeUrl(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var m = YtUrlRegex.Match(text.Trim());
+        return m.Success ? m.Value : null;
     }
 
     private void BrowseClick(object sender, RoutedEventArgs e)
@@ -200,9 +223,6 @@ public partial class MainWindow : Window
             DownloadBtn.IsEnabled = true;
         }
     }
-
-    private static bool LooksLikeYoutubeUrl(string s)
-        => !string.IsNullOrWhiteSpace(s) && YtUrlRegex.IsMatch(s.Trim());
 
     private static bool UrlContainsPlaylist(string url)
         => url.Contains("list=", StringComparison.OrdinalIgnoreCase)

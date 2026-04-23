@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -113,6 +115,79 @@ public static class YtDlpService
         var output = await p.StandardOutput.ReadToEndAsync(ct);
         await p.WaitForExitAsync(ct);
         return output.Trim();
+    }
+
+    public static async Task EnsureFfmpegAsync(Action<string> log, CancellationToken ct)
+    {
+        Directory.CreateDirectory(AppDir);
+
+        var beside = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
+        if (File.Exists(beside))
+        {
+            log("Using ffmpeg.exe bundled next to the app.");
+            return;
+        }
+
+        if (File.Exists(LocalFfmpegPath))
+        {
+            var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(LocalFfmpegPath);
+            if (age.TotalDays < 30)
+            {
+                log($"ffmpeg is current ({(int)age.TotalDays}d old).");
+                return;
+            }
+            log($"ffmpeg is {(int)age.TotalDays}d old — refreshing…");
+        }
+        else
+        {
+            log("ffmpeg not found — downloading (~35 MB, one-time)…");
+        }
+
+        const string zipUrl =
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip";
+        var tmpZip = Path.Combine(AppDir, "ffmpeg-download.zip");
+
+        try
+        {
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("YtDownloader", "1.0"));
+            http.Timeout = TimeSpan.FromMinutes(10);
+
+            using (var resp = await http.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead, ct))
+            {
+                resp.EnsureSuccessStatusCode();
+                await using var src = await resp.Content.ReadAsStreamAsync(ct);
+                await using var dst = File.Create(tmpZip);
+                await src.CopyToAsync(dst, ct);
+            }
+
+            log("Extracting ffmpeg.exe…");
+            using (var zip = ZipFile.OpenRead(tmpZip))
+            {
+                var entry = zip.Entries.FirstOrDefault(e =>
+                    e.FullName.EndsWith("/bin/ffmpeg.exe", StringComparison.OrdinalIgnoreCase));
+                if (entry is null)
+                {
+                    log("Couldn't find ffmpeg.exe inside the zip — aborting update.");
+                    return;
+                }
+                var tmpExe = LocalFfmpegPath + ".tmp";
+                entry.ExtractToFile(tmpExe, overwrite: true);
+                if (File.Exists(LocalFfmpegPath)) File.Delete(LocalFfmpegPath);
+                File.Move(tmpExe, LocalFfmpegPath);
+            }
+            log("ffmpeg ready.");
+        }
+        catch (Exception ex)
+        {
+            log("ffmpeg download failed: " + ex.Message);
+            if (!File.Exists(LocalFfmpegPath))
+                log("1080p+ merging and MP3 conversion won't work until ffmpeg is installed.");
+        }
+        finally
+        {
+            try { if (File.Exists(tmpZip)) File.Delete(tmpZip); } catch { }
+        }
     }
 
     public static bool TryFindFfmpeg(out string path)

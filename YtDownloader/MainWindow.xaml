@@ -5,7 +5,7 @@
         MinHeight="560" MinWidth="580"
         Background="{StaticResource BgBrush}"
         WindowStartupLocation="CenterScreen"
-        AllowDrop="True" Drop="Window_Drop">
+        AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
     <Border Margin="16" Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
             CornerRadius="10" Padding="20">
@@ -27,7 +27,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="YT Downloader" FontSize="20" FontWeight="SemiBold"/>
-            <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Tick 'Watch clipboard' and any YouTube URL you copy will download automatically."
+            <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Drag a YouTube link into the box below to auto-download."
                        Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,14" TextWrapping="Wrap"/>
 
             <Grid Grid.Row="2">
@@ -35,12 +35,15 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="YouTube URL" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-                <CheckBox Grid.Column="1" x:Name="WatchClipboardCheck"
-                          Content="Watch clipboard" FontSize="12"
-                          Foreground="{StaticResource MutedBrush}"/>
+                <TextBlock Text="YouTube URL  (drop a link here)"
+                           Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                <CheckBox Grid.Column="1" x:Name="TopmostCheck"
+                          Content="Always on top" FontSize="12"
+                          Foreground="{StaticResource MutedBrush}"
+                          Checked="TopmostCheck_Changed" Unchecked="TopmostCheck_Changed"/>
             </Grid>
-            <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,4,0,10"/>
+            <TextBox Grid.Row="3" x:Name="UrlBox" Margin="0,4,0,10"
+                     AllowDrop="True" PreviewDragOver="Window_DragOver" Drop="Window_Drop"/>
 
             <Grid Grid.Row="4" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
