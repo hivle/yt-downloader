@@ -277,6 +277,12 @@ public static class YtDlpService
             StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
+        // Force the bundled Python inside yt-dlp.exe to emit UTF-8.
+        // Without this, on a Chinese/Japanese/Korean Windows the default
+        // codepage (GBK / Shift-JIS / EUC-KR) corrupts non-ASCII titles
+        // into '?' characters before they reach our pipe.
+        psi.Environment["PYTHONIOENCODING"] = "utf-8";
+        psi.Environment["PYTHONUTF8"] = "1";
         foreach (var a in args) psi.ArgumentList.Add(a);
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };

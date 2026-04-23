@@ -124,7 +124,7 @@
             <TextBox Grid.Row="12" x:Name="LogBox" IsReadOnly="True"
                      VerticalScrollBarVisibility="Auto"
                      TextWrapping="Wrap"
-                     FontFamily="Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Malgun Gothic, Segoe UI"
+                     FontFamily="Cascadia Mono, Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Meiryo, Malgun Gothic, MS Gothic, SimSun, PMingLiU, Segoe UI"
                      FontSize="11"
                      Background="{StaticResource SoftBgBrush}"
                      MinHeight="60"/>
