@@ -130,6 +130,32 @@ public partial class MainWindow : Window
         return m.Success ? m.Value : null;
     }
 
+    private void OpenFolderClick(object sender, RoutedEventArgs e)
+    {
+        var dir = SaveDirBox.Text.Trim();
+        try { Directory.CreateDirectory(dir); } catch { }
+        if (!Directory.Exists(dir))
+        {
+            MessageBox.Show(this, "Folder doesn't exist:\n\n" + dir, "YT Downloader",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{dir}\"",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, "Couldn't open folder: " + ex.Message, "YT Downloader",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void BrowseClick(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFolderDialog
