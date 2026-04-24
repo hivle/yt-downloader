@@ -125,7 +125,7 @@
                     <Button Grid.Column="1" x:Name="FromBrowserBtn"
                             Content="Grab from browser" Click="FromBrowserClick"
                             Height="34" Margin="4,0,0,0"
-                            Background="{StaticResource SecondaryBrush}"
+                            Background="{StaticResource OkBrush}"
                             Foreground="White"/>
                 </Grid>
 
@@ -211,12 +211,12 @@
                     </Grid.ColumnDefinitions>
                     <Button Content="Grab from browser" Click="FromBrowserClick"
                             MinHeight="36" Padding="10,4"
-                            Background="{StaticResource SecondaryBrush}"
+                            Background="{StaticResource OkBrush}"
                             Foreground="White"/>
-                    <Button Grid.Column="1" Content="Exit" ToolTip="Exit mini mode"
+                    <Button Grid.Column="1" Content="⤢" ToolTip="Exit mini mode"
                             Click="ExitMiniClick"
-                            Margin="8,0,0,0" Padding="14,4" MinHeight="36"
-                            FontSize="11"
+                            Margin="8,0,0,0" Padding="12,0" MinHeight="36" MinWidth="40"
+                            FontSize="18" FontWeight="Bold"
                             Background="{StaticResource SoftBgBrush}"
                             Foreground="{StaticResource TextBrush}"/>
                 </Grid>
