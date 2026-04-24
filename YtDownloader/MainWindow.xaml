@@ -44,8 +44,11 @@
                             Foreground="{StaticResource TextBrush}"
                             VerticalAlignment="Center"/>
                 </Grid>
-                <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Drag any video link (YouTube, Twitter/X, TikTok, Bilibili, Vimeo, …) into the box below to auto-download."
-                           Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,10" TextWrapping="Wrap"/>
+                <TextBlock Grid.Row="1" Text="yt-dlp auto-updates on launch. Drag any video link into the box below to auto-download."
+                           Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,4" TextWrapping="Wrap"/>
+                <TextBlock Grid.Row="1" Text="CJK font test → 繁體中文: 沒錢了 揭不開鍋 | 简体中文: 没钱 | 日本語: こんにちは | 한국어: 안녕"
+                           Margin="0,26,0,10" FontSize="11"
+                           Foreground="{StaticResource OkBrush}"/>
 
                 <Grid Grid.Row="2">
                     <Grid.ColumnDefinitions>
