@@ -252,10 +252,37 @@ public partial class MainWindow : Window
             return;
         }
 
-        await StartDownloadAsync();
+        await StartDownloadAsync(CleanBrowserTitle(title));
     }
 
-    private async Task StartDownloadAsync()
+    private static string? CleanBrowserTitle(string? winTitle)
+    {
+        if (string.IsNullOrWhiteSpace(winTitle)) return null;
+        var t = winTitle;
+        // Strip the leading "(N) " unread-count prefix tabs/browsers add.
+        t = System.Text.RegularExpressions.Regex.Replace(t, @"^\(\d+\)\s+", "");
+        // Strip common trailing browser / site annotations.
+        foreach (var suffix in new[]
+        {
+            " - YouTube",  " – YouTube",
+            " - Google Chrome", " — Google Chrome",
+            " - Microsoft​ Edge", " - Microsoft Edge",
+            " — Mozilla Firefox", " - Mozilla Firefox",
+            " — Brave", " - Brave",
+            " - Opera", " - Vivaldi",
+            " and 1 more page - Personal - Microsoft​ Edge",
+        })
+        {
+            var i = t.LastIndexOf(suffix, StringComparison.Ordinal);
+            if (i > 0) t = t[..i];
+        }
+        // Generic trailing " - <browsername>" removal.
+        var dashIdx = t.LastIndexOf(" - ", StringComparison.Ordinal);
+        if (dashIdx > 0 && t.Length - dashIdx < 40) t = t[..dashIdx];
+        return t.Trim().Length == 0 ? null : t.Trim();
+    }
+
+    private async Task StartDownloadAsync(string? preFetchedTitle = null)
     {
         var url = UrlBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(url))
@@ -309,6 +336,8 @@ public partial class MainWindow : Window
             browser == "(none)" ? null : browser);
 
         var job = new DownloadJob(url) { Status = "Starting…" };
+        if (!string.IsNullOrWhiteSpace(preFetchedTitle))
+            job.Title = preFetchedTitle;
         Jobs.Add(job);
         UrlBox.Clear();
 
@@ -334,10 +363,11 @@ public partial class MainWindow : Window
             try
             {
                 var t = await YtDlpService.FetchTitleAsync(req.Url, req.Browser, linked.Token);
+                Log(string.IsNullOrWhiteSpace(t) ? "[preflight] no title returned" : $"[preflight] title: {t}");
                 if (!string.IsNullOrWhiteSpace(t))
                     Dispatcher.Invoke(() => { if (job.Title is null || IsLikelySanitized(job.Title)) job.Title = t; });
             }
-            catch { }
+            catch (Exception ex) { Log("[preflight] error: " + ex.Message); }
         }, linked.Token);
 
         try
@@ -356,7 +386,11 @@ public partial class MainWindow : Window
                 {
                     var t = ExtractTitleFromLine(line);
                     if (t is not null)
-                        Dispatcher.Invoke(() => { if (job.Title is null) job.Title = t; });
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (job.Title is null || IsLikelySanitized(job.Title))
+                                job.Title = t;
+                        });
 
                     // Hide our own control-channel line from the log.
                     if (line.StartsWith(TitlePrefix, StringComparison.Ordinal)) return;
@@ -463,25 +497,15 @@ public partial class MainWindow : Window
 
     private static string? ExtractTitleFromLine(string line)
     {
-        // yt-dlp's --print before_dl template emits the raw title here.
+        // Only trust yt-dlp's --print before_dl line — never the destination
+        // path, whose filename can be sanitized to ASCII-only garbage and
+        // mask the real title.
         if (line.StartsWith(TitlePrefix, StringComparison.Ordinal))
         {
             var t = line[TitlePrefix.Length..].Trim();
             return string.IsNullOrEmpty(t) ? null : t;
         }
-
-        // Fallback: extract from the destination line, whose filename may be
-        // sanitized (numbers/ASCII only) but is better than nothing.
-        var m = DestinationRegex.Match(line);
-        if (!m.Success) return null;
-        var path = m.Groups[1].Value.Trim().Trim('"');
-        try
-        {
-            var name = Path.GetFileNameWithoutExtension(path);
-            var idx = name.LastIndexOf(" [");
-            return (idx > 0 ? name[..idx] : name).Trim();
-        }
-        catch { return null; }
+        return null;
     }
 
     private static bool UrlContainsPlaylist(string url)
