@@ -7,7 +7,7 @@
         Background="{StaticResource BgBrush}"
         WindowStartupLocation="CenterScreen"
         Topmost="True"
-        FontFamily="Segoe UI, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Meiryo, Malgun Gothic, MS Gothic, SimSun, PMingLiU"
+        FontFamily="Microsoft JhengHei UI, Microsoft YaHei UI, Microsoft JhengHei, Microsoft YaHei, PMingLiU, MingLiU, SimSun, Yu Gothic UI, Meiryo, MS Gothic, Malgun Gothic, Segoe UI"
         AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
     <Grid>
         <!-- Full mode -->
@@ -144,7 +144,7 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Display}"
-                                                       FontFamily="Microsoft YaHei UI" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+                                                       FontFamily="Microsoft JhengHei UI, Microsoft YaHei UI, Microsoft JhengHei, Microsoft YaHei, PMingLiU, MingLiU, SimSun, Yu Gothic UI, Meiryo, MS Gothic, Malgun Gothic, Segoe UI"
                                                        TextTrimming="CharacterEllipsis" FontSize="11"
                                                        FontWeight="SemiBold"
                                                        Foreground="{StaticResource TextBrush}"/>
@@ -154,7 +154,7 @@
                                                          Foreground="{StaticResource AccentBrush}"
                                                          BorderBrush="{StaticResource BorderBrush}"/>
                                             <TextBlock Text="{Binding Status}" FontSize="10"
-                                                       FontFamily="Microsoft YaHei UI" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+                                                       FontFamily="Microsoft JhengHei UI, Microsoft YaHei UI, Microsoft JhengHei, Microsoft YaHei, PMingLiU, MingLiU, SimSun, Yu Gothic UI, Meiryo, MS Gothic, Malgun Gothic, Segoe UI"
                                                        Foreground="{StaticResource MutedBrush}"
                                                        TextTrimming="CharacterEllipsis"/>
                                         </StackPanel>
@@ -187,7 +187,7 @@
                 <TextBox Grid.Row="12" x:Name="LogBox" IsReadOnly="True"
                          VerticalScrollBarVisibility="Auto"
                          TextWrapping="Wrap"
-                         FontFamily="Cascadia Mono, Consolas, Microsoft YaHei UI, Microsoft JhengHei UI, Yu Gothic UI, Meiryo, Malgun Gothic, MS Gothic, SimSun, PMingLiU, Segoe UI"
+                         FontFamily="Microsoft JhengHei UI, Microsoft YaHei UI, Microsoft JhengHei, Microsoft YaHei, PMingLiU, MingLiU, SimSun, Yu Gothic UI, Meiryo, MS Gothic, Malgun Gothic, Cascadia Mono, Consolas, Segoe UI"
                          FontSize="11"
                          Background="{StaticResource SoftBgBrush}"
                          MinHeight="60"/>
@@ -228,7 +228,7 @@
                              Foreground="{StaticResource AccentBrush}"
                              BorderBrush="{StaticResource BorderBrush}"/>
                 <TextBlock Grid.Row="2" x:Name="MiniStatus" Text="Ready"
-                           FontFamily="Microsoft YaHei UI" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+                           FontFamily="Microsoft JhengHei UI, Microsoft YaHei UI, Microsoft JhengHei, Microsoft YaHei, PMingLiU, MingLiU, SimSun, Yu Gothic UI, Meiryo, MS Gothic, Malgun Gothic, Segoe UI"
                            FontSize="11" Foreground="{StaticResource MutedBrush}"
                            TextTrimming="CharacterEllipsis"/>
             </Grid>
