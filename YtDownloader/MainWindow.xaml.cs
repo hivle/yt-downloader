@@ -343,7 +343,14 @@ public partial class MainWindow : Window
                     Log(line);
                     var t = ExtractTitleFromLine(line);
                     if (t is not null)
-                        Dispatcher.Invoke(() => { if (job.Title is null) job.Title = t; });
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (job.Title is null)
+                            {
+                                job.Title = t;
+                                Log($"[title] len={t.Length} \"{t}\" bytes={BitConverter.ToString(System.Text.Encoding.UTF8.GetBytes(t))}");
+                            }
+                        });
                 },
                 linked.Token);
 
