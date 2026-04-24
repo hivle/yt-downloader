@@ -85,10 +85,14 @@ public partial class MainWindow : Window
         MiniPanel.Visibility = Visibility.Visible;
 
         MinWidth = 300;
-        MinHeight = 110;
+        MinHeight = 130;
         Width = 360;
-        Height = 120;
-        ResizeMode = ResizeMode.CanResize;
+        Height = 140;
+        MaxWidth = 360;
+        MaxHeight = 140;
+        ResizeMode = ResizeMode.NoResize;
+        WindowStyle = WindowStyle.ToolWindow;
+        UpdateMiniStatus();
     }
 
     private void ExitMiniClick(object sender, RoutedEventArgs e)
@@ -96,6 +100,9 @@ public partial class MainWindow : Window
         MainPanel.Visibility = Visibility.Visible;
         MiniPanel.Visibility = Visibility.Collapsed;
 
+        MaxWidth = double.PositiveInfinity;
+        MaxHeight = double.PositiveInfinity;
+        WindowStyle = WindowStyle.SingleBorderWindow;
         ResizeMode = _savedResizeMode == 0 ? ResizeMode.CanResize : _savedResizeMode;
         MinWidth = _savedMinWidth > 0 ? _savedMinWidth : 440;
         MinHeight = _savedMinHeight > 0 ? _savedMinHeight : 420;
@@ -306,6 +313,7 @@ public partial class MainWindow : Window
         UrlBox.Clear();
 
         SetStatus($"{Jobs.Count(j => j.IsActive)} active.", ok: true);
+        UpdateMiniStatus();
 
         // Fire-and-forget; each job runs independently.
         _ = RunJobAsync(job, req);
@@ -328,6 +336,7 @@ public partial class MainWindow : Window
                     var item = p.Item is not null ? $"[{p.Item}/{p.Total}] " : "";
                     var eta = p.Eta is null ? "" : $" · ETA {p.Eta}";
                     job.Status = $"{item}{p.Percent:0.0}% · {p.Speed}{eta}";
+                    UpdateMiniStatus();
                 }),
                 line =>
                 {
@@ -394,7 +403,35 @@ public partial class MainWindow : Window
         var active = Jobs.Count(j => j.IsActive);
         var done = Jobs.Count - active;
         SetStatus(active == 0 && done == 0 ? "Ready." : $"{active} active · {done} finished.", ok: true);
+        UpdateMiniStatus();
     }
+
+    private void UpdateMiniStatus()
+    {
+        var active = Jobs.Where(j => j.IsActive).ToList();
+        if (active.Count == 0)
+        {
+            var done = Jobs.Count;
+            MiniStatus.Text = done > 0 ? $"{done} finished" : "Ready";
+            MiniProgress.Value = 0;
+            return;
+        }
+        if (active.Count == 1)
+        {
+            var j = active[0];
+            MiniStatus.Text = $"{j.Percent:0}% · {Truncate(j.Display, 38)}";
+            MiniProgress.Value = j.Percent;
+        }
+        else
+        {
+            var avg = active.Average(j => j.Percent);
+            MiniStatus.Text = $"{active.Count} active · avg {avg:0}%";
+            MiniProgress.Value = avg;
+        }
+    }
+
+    private static string Truncate(string s, int max)
+        => s.Length <= max ? s : s[..(max - 1)] + "…";
 
     private static string? ExtractTitleFromLine(string line)
     {
