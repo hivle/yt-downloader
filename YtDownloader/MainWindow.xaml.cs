@@ -326,6 +326,20 @@ public partial class MainWindow : Window
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             _shutdown.Token, job.Cts.Token);
 
+        // Preflight the real title in parallel with the download so the UI
+        // doesn't have to wait for it and we're not reliant on yt-dlp emitting
+        // it during the download run.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var t = await YtDlpService.FetchTitleAsync(req.Url, req.Browser, linked.Token);
+                if (!string.IsNullOrWhiteSpace(t))
+                    Dispatcher.Invoke(() => { if (job.Title is null || IsLikelySanitized(job.Title)) job.Title = t; });
+            }
+            catch { }
+        }, linked.Token);
+
         try
         {
             var exit = await YtDlpService.DownloadAsync(
@@ -436,6 +450,16 @@ public partial class MainWindow : Window
     }
 
     private const string TitlePrefix = "YTDL_TITLE::";
+
+    private static bool IsLikelySanitized(string s)
+    {
+        // Only digits, dots, spaces, hyphens and underscores — the residue of
+        // --restrict-filenames on a non-English title.
+        foreach (var ch in s)
+            if (!(char.IsDigit(ch) || ch == '.' || ch == ' ' || ch == '-' || ch == '_'))
+                return false;
+        return true;
+    }
 
     private static string? ExtractTitleFromLine(string line)
     {

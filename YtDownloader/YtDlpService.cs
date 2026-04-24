@@ -190,6 +190,47 @@ public static class YtDlpService
         }
     }
 
+    public static async Task<string?> FetchTitleAsync(string url, string? browser, CancellationToken ct)
+    {
+        if (!File.Exists(YtDlpPath)) return null;
+
+        var args = new List<string>
+        {
+            "--no-warnings", "--no-playlist", "--skip-download",
+            "--print", "%(title)s",
+        };
+        if (!string.IsNullOrEmpty(browser))
+            args.AddRange(new[] { "--cookies-from-browser", browser });
+        args.Add(url);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = YtDlpPath,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
+        };
+        psi.Environment["PYTHONIOENCODING"] = "utf-8";
+        psi.Environment["PYTHONUTF8"] = "1";
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc is null) return null;
+            var outTask = proc.StandardOutput.ReadToEndAsync(ct);
+            await proc.WaitForExitAsync(ct);
+            var output = await outTask;
+            if (proc.ExitCode != 0) return null;
+            var line = output.Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+            return line?.Trim();
+        }
+        catch { return null; }
+    }
+
     public static bool TryFindFfmpeg(out string path)
     {
         var beside = Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe");
