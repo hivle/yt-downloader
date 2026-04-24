@@ -85,11 +85,11 @@ public partial class MainWindow : Window
         MiniPanel.Visibility = Visibility.Visible;
 
         MinWidth = 300;
-        MinHeight = 130;
+        MinHeight = 160;
         Width = 360;
-        Height = 140;
+        Height = 170;
         MaxWidth = 360;
-        MaxHeight = 140;
+        MaxHeight = 170;
         ResizeMode = ResizeMode.NoResize;
         WindowStyle = WindowStyle.ToolWindow;
         UpdateMiniStatus();
