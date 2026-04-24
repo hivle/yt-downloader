@@ -408,6 +408,8 @@ public partial class MainWindow : Window
 
     private void UpdateMiniStatus()
     {
+        if (MiniStatus is null || MiniProgress is null) return;
+
         var active = Jobs.Where(j => j.IsActive).ToList();
         if (active.Count == 0)
         {
@@ -419,7 +421,7 @@ public partial class MainWindow : Window
         if (active.Count == 1)
         {
             var j = active[0];
-            MiniStatus.Text = $"{j.Percent:0}% · {Truncate(j.Display, 38)}";
+            MiniStatus.Text = $"{j.Percent:0}% · {j.Display}";
             MiniProgress.Value = j.Percent;
         }
         else
@@ -429,9 +431,6 @@ public partial class MainWindow : Window
             MiniProgress.Value = avg;
         }
     }
-
-    private static string Truncate(string s, int max)
-        => s.Length <= max ? s : s[..(max - 1)] + "…";
 
     private static string? ExtractTitleFromLine(string line)
     {
