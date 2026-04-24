@@ -340,17 +340,13 @@ public partial class MainWindow : Window
                 }),
                 line =>
                 {
-                    Log(line);
                     var t = ExtractTitleFromLine(line);
                     if (t is not null)
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (job.Title is null)
-                            {
-                                job.Title = t;
-                                Log($"[title] len={t.Length} \"{t}\" bytes={BitConverter.ToString(System.Text.Encoding.UTF8.GetBytes(t))}");
-                            }
-                        });
+                        Dispatcher.Invoke(() => { if (job.Title is null) job.Title = t; });
+
+                    // Hide our own control-channel line from the log.
+                    if (line.StartsWith(TitlePrefix, StringComparison.Ordinal)) return;
+                    Log(line);
                 },
                 linked.Token);
 
@@ -439,8 +435,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private const string TitlePrefix = "YTDL_TITLE::";
+
     private static string? ExtractTitleFromLine(string line)
     {
+        // yt-dlp's --print before_dl template emits the raw title here.
+        if (line.StartsWith(TitlePrefix, StringComparison.Ordinal))
+        {
+            var t = line[TitlePrefix.Length..].Trim();
+            return string.IsNullOrEmpty(t) ? null : t;
+        }
+
+        // Fallback: extract from the destination line, whose filename may be
+        // sanitized (numbers/ASCII only) but is better than nothing.
         var m = DestinationRegex.Match(line);
         if (!m.Success) return null;
         var path = m.Groups[1].Value.Trim().Trim('"');

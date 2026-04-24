@@ -239,6 +239,9 @@ public static class YtDlpService
         {
             "--newline",
             "--no-warnings",
+            "--no-restrict-filenames",
+            "--windows-filenames",
+            "--print", "before_dl:YTDL_TITLE::%(title)s",
             "-f", FormatSelector(req.Quality, req.AudioOnly),
             "-o", outputTemplate,
         };
