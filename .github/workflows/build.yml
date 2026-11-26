@@ -1,0 +1,52 @@
+name: Build YtDownloader.exe
+
+on:
+  push:
+    branches:
+      - main
+      - claude/youtube-video-downloader-DLaUD
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish single-file exe
+        run: >
+          dotnet publish YtDownloader -c Release -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=none
+          -p:DebugSymbols=false
+          -o dist
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YtDownloader
+          path: dist/YtDownloader.exe
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: YtDownloader build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: dist/YtDownloader.exe
+          body: |
+            Automatic build from commit ${{ github.sha }}.
+
+            Download **YtDownloader.exe** below and double-click it. No install needed (Windows 10/11, 64-bit).
+            yt-dlp and ffmpeg are downloaded/updated automatically on first launch.
