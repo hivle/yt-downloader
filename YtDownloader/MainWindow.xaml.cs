@@ -18,11 +18,8 @@ public partial class MainWindow : Window
         @"https?://[^\s<>""']+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly Regex DestinationRegex = new(
-        @"\[(?:download|Merger)\]\s+(?:Destination:\s+|Merging formats into\s+""?)(.+?)""?$",
-        RegexOptions.Compiled);
-
     private readonly CancellationTokenSource _shutdown = new();
+    private Task _setupTask = Task.CompletedTask;
     public ObservableCollection<DownloadJob> Jobs { get; } = new();
 
     private double _savedWidth, _savedHeight, _savedMinWidth, _savedMinHeight;
@@ -41,20 +38,8 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        Log("Starting up…");
-        try
-        {
-            await YtDlpService.EnsureYtDlpAsync(Log, _shutdown.Token);
-            await YtDlpService.EnsureFfmpegAsync(Log, _shutdown.Token);
-            var version = await YtDlpService.GetYtDlpVersionAsync(_shutdown.Token);
-            SetStatus($"yt-dlp v{version} ready.", ok: true);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            Log("Startup error: " + ex.Message);
-            SetStatus("yt-dlp setup failed — check log.", ok: false);
-        }
+        _setupTask = SetupAsync();
+        await _setupTask;
 
         var args = Environment.GetCommandLineArgs();
         if (args.Length > 1)
@@ -66,6 +51,34 @@ public partial class MainWindow : Window
                 _ = StartDownloadAsync();
             }
         }
+    }
+
+    private async Task SetupAsync()
+    {
+        Log("Starting up…");
+        SetStatus("Setting up yt-dlp / ffmpeg…", ok: true);
+
+        // Each step is independent: a failed yt-dlp update must not skip ffmpeg.
+        try { await YtDlpService.EnsureYtDlpAsync(Log, _shutdown.Token); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) { Log("yt-dlp setup error: " + ex.Message); }
+
+        try { await YtDlpService.EnsureFfmpegAsync(Log, _shutdown.Token); }
+        catch (OperationCanceledException) { return; }
+        catch (Exception ex) { Log("ffmpeg setup error: " + ex.Message); }
+
+        if (!File.Exists(YtDlpService.YtDlpPath))
+        {
+            SetStatus("yt-dlp missing — check log / internet connection.", ok: false);
+            return;
+        }
+        try
+        {
+            var version = await YtDlpService.GetYtDlpVersionAsync(_shutdown.Token);
+            SetStatus($"yt-dlp v{version} ready.", ok: true);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Log("yt-dlp version check failed: " + ex.Message); }
     }
 
     private void TopmostCheck_Changed(object sender, RoutedEventArgs e)
@@ -276,9 +289,6 @@ public partial class MainWindow : Window
             var i = t.LastIndexOf(suffix, StringComparison.Ordinal);
             if (i > 0) t = t[..i];
         }
-        // Generic trailing " - <browsername>" removal.
-        var dashIdx = t.LastIndexOf(" - ", StringComparison.Ordinal);
-        if (dashIdx > 0 && t.Length - dashIdx < 40) t = t[..dashIdx];
         return t.Trim().Length == 0 ? null : t.Trim();
     }
 
@@ -352,26 +362,34 @@ public partial class MainWindow : Window
 
     private async Task RunJobAsync(DownloadJob job, DownloadRequest req)
     {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+        var linked = CancellationTokenSource.CreateLinkedTokenSource(
             _shutdown.Token, job.Cts.Token);
-
-        // Preflight the real title in parallel with the download so the UI
-        // doesn't have to wait for it and we're not reliant on yt-dlp emitting
-        // it during the download run.
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var t = await YtDlpService.FetchTitleAsync(req.Url, req.Browser, linked.Token);
-                Log(string.IsNullOrWhiteSpace(t) ? "[preflight] no title returned" : $"[preflight] title: {t}");
-                if (!string.IsNullOrWhiteSpace(t))
-                    Dispatcher.Invoke(() => { if (job.Title is null || IsLikelySanitized(job.Title)) job.Title = t; });
-            }
-            catch (Exception ex) { Log("[preflight] error: " + ex.Message); }
-        }, linked.Token);
+        var token = linked.Token;
+        Task preflight = Task.CompletedTask;
 
         try
         {
+            // Jobs queued in the first seconds after launch must not run before
+            // yt-dlp / ffmpeg exist, or merging and MP3 conversion fail.
+            if (!_setupTask.IsCompleted)
+            {
+                job.Status = "Waiting for yt-dlp / ffmpeg setup…";
+                await _setupTask.WaitAsync(token);
+                job.Status = "Starting…";
+            }
+
+            // Fetch the real title alongside the download. Skipped for playlists
+            // and channels: it would enumerate every video just to get a name.
+            if (!req.Playlist)
+            {
+                preflight = Task.Run(async () =>
+                {
+                    var t = await YtDlpService.FetchTitleAsync(req.Url, req.Browser, token);
+                    if (!string.IsNullOrWhiteSpace(t))
+                        Dispatcher.Invoke(() => job.Title = t);
+                });
+            }
+
             var exit = await YtDlpService.DownloadAsync(
                 req,
                 p => Dispatcher.Invoke(() =>
@@ -382,21 +400,8 @@ public partial class MainWindow : Window
                     job.Status = $"{item}{p.Percent:0.0}% · {p.Speed}{eta}";
                     UpdateMiniStatus();
                 }),
-                line =>
-                {
-                    var t = ExtractTitleFromLine(line);
-                    if (t is not null)
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (job.Title is null || IsLikelySanitized(job.Title))
-                                job.Title = t;
-                        });
-
-                    // Hide our own control-channel line from the log.
-                    if (line.StartsWith(TitlePrefix, StringComparison.Ordinal)) return;
-                    Log(line);
-                },
-                linked.Token);
+                Log,
+                token);
 
             Dispatcher.Invoke(() =>
             {
@@ -424,6 +429,11 @@ public partial class MainWindow : Window
                 RefreshGlobalStatus();
             });
             Log("ERROR: " + ex.Message);
+        }
+        finally
+        {
+            try { await preflight; } catch { }
+            linked.Dispose();
         }
     }
 
@@ -483,43 +493,20 @@ public partial class MainWindow : Window
         }
     }
 
-    private const string TitlePrefix = "YTDL_TITLE::";
-
-    private static bool IsLikelySanitized(string s)
-    {
-        // Only digits, dots, spaces, hyphens and underscores — the residue of
-        // --restrict-filenames on a non-English title.
-        foreach (var ch in s)
-            if (!(char.IsDigit(ch) || ch == '.' || ch == ' ' || ch == '-' || ch == '_'))
-                return false;
-        return true;
-    }
-
-    private static string? ExtractTitleFromLine(string line)
-    {
-        // Only trust yt-dlp's --print before_dl line — never the destination
-        // path, whose filename can be sanitized to ASCII-only garbage and
-        // mask the real title.
-        if (line.StartsWith(TitlePrefix, StringComparison.Ordinal))
-        {
-            var t = line[TitlePrefix.Length..].Trim();
-            return string.IsNullOrEmpty(t) ? null : t;
-        }
-        return null;
-    }
-
     private static bool UrlContainsPlaylist(string url)
         => url.Contains("list=", StringComparison.OrdinalIgnoreCase)
            || url.Contains("/playlist", StringComparison.OrdinalIgnoreCase);
 
     private static bool UrlIsChannel(string url)
     {
-        if (url.Contains("/watch", StringComparison.OrdinalIgnoreCase)) return false;
-        var lower = url.ToLowerInvariant();
-        return lower.Contains("/@")
-            || lower.Contains("/channel/")
-            || lower.Contains("/c/")
-            || lower.Contains("/user/");
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
+        var host = u.Host.ToLowerInvariant();
+        if (host != "youtube.com" && !host.EndsWith(".youtube.com")) return false;
+        var path = u.AbsolutePath.ToLowerInvariant();
+        return path.StartsWith("/@")
+            || path.StartsWith("/channel/")
+            || path.StartsWith("/c/")
+            || path.StartsWith("/user/");
     }
 
     private void Log(string line) =>

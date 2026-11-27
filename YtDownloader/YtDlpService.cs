@@ -60,7 +60,14 @@ public static class YtDlpService
         else if (latest is not null && !string.Equals(current, latest, StringComparison.OrdinalIgnoreCase))
         {
             log($"Updating yt-dlp {current} → {latest}…");
-            await DownloadYtDlpAsync(latest, log, ct);
+            try { await DownloadYtDlpAsync(latest, log, ct); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                // e.g. yt-dlp.exe is in use by another window's download.
+                log($"yt-dlp update failed ({ex.Message}); keeping v{current}.");
+                try { File.Delete(YtDlpPath + ".tmp"); } catch { }
+            }
         }
         else
         {
@@ -140,7 +147,7 @@ public static class YtDlpService
         }
         else
         {
-            log("ffmpeg not found — downloading (~35 MB, one-time)…");
+            log("ffmpeg not found — downloading (large, one-time)…");
         }
 
         const string zipUrl =
@@ -175,6 +182,9 @@ public static class YtDlpService
                 entry.ExtractToFile(tmpExe, overwrite: true);
                 if (File.Exists(LocalFfmpegPath)) File.Delete(LocalFfmpegPath);
                 File.Move(tmpExe, LocalFfmpegPath);
+                // ExtractToFile stamps the zip entry's date; reset it so the
+                // 30-day refresh counts from when we downloaded it.
+                File.SetLastWriteTimeUtc(LocalFfmpegPath, DateTime.UtcNow);
             }
             log("ffmpeg ready.");
         }
@@ -217,18 +227,30 @@ public static class YtDlpService
         psi.Environment["PYTHONUTF8"] = "1";
         foreach (var a in args) psi.ArgumentList.Add(a);
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(60));
+
+        Process? proc = null;
         try
         {
-            using var proc = Process.Start(psi);
+            proc = Process.Start(psi);
             if (proc is null) return null;
-            var outTask = proc.StandardOutput.ReadToEndAsync(ct);
-            await proc.WaitForExitAsync(ct);
+            // Read both pipes: an undrained stderr can fill up and hang yt-dlp.
+            var outTask = proc.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errTask = proc.StandardError.ReadToEndAsync(timeout.Token);
+            await proc.WaitForExitAsync(timeout.Token);
             var output = await outTask;
+            await errTask;
             if (proc.ExitCode != 0) return null;
             var line = output.Split('\n').FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
             return line?.Trim();
         }
         catch { return null; }
+        finally
+        {
+            try { if (proc is not null && !proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+            proc?.Dispose();
+        }
     }
 
     public static bool TryFindFfmpeg(out string path)
